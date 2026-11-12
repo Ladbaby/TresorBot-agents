@@ -27,8 +27,7 @@
     {
       "key": "tools",
       "type": "string_list",
-      "default": ["read", "grep", "find", "ls", "edit", "write", "bash"],
-      "description": "Native tools the agent may use in the bot workspace."
+      "description": "Optional. Restricts which tools the agent may use. Omit to keep pi's own tool selection, including every tool your pi extensions register."
     }
   ]
 }
