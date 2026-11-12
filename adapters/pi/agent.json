@@ -11,12 +11,7 @@
     {
       "key": "cli_path",
       "type": "path",
-      "description": "Path to the installed pi CLI. Used to locate the pi package for the SDK."
-    },
-    {
-      "key": "pi_path",
-      "type": "path",
-      "description": "Legacy alias for cli_path."
+      "description": "Optional. The pi command or its package directory. Omit to discover the installation automatically."
     },
     {
       "key": "model",

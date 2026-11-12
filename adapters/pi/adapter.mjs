@@ -14,6 +14,8 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
+import { PI_PKG, resolvePiPkgDir } from "./pi-resolve.mjs";
+
 const IMPORTED_HISTORY_MODEL = "imported-history";
 
 /** Structural failure the host reports as a typed protocol reason. */
@@ -25,44 +27,34 @@ class AdapterError extends Error {
   }
 }
 
-/**
- * Resolves pi's package root from a CLI path, the same heuristic the old helper
- * used, so an operator's existing `cli_path` keeps working.
- */
-async function findPiPackage(cliPath) {
-  let root = resolve(cliPath);
-  for (;;) {
-    const manifest = join(root, "package.json");
-    if (existsSync(manifest)) {
-      try {
-        const parsed = JSON.parse(await readFile(manifest, "utf8"));
-        if (parsed.name === "@earendil-works/pi-coding-agent") return root;
-      } catch {
-        // Keep walking: a malformed package.json is not our package.
-      }
-    }
-    const parent = dirname(root);
-    if (parent === root) return null;
-    root = parent;
-  }
-}
-
 /** Loads the SDK exactly once per host, not once per session. */
 let sdkPromise = null;
+/** How the SDK was located, so a session can report it as a diagnostic. */
+let lastResolution = null;
 async function loadSdk(settings) {
   if (!sdkPromise) {
     sdkPromise = (async () => {
-      const cliPath = settings.cli_path;
-      if (cliPath) {
-        const root = await findPiPackage(cliPath);
-        if (!root) {
-          throw new AdapterError("pi_unavailable", `could not locate the pi package from ${cliPath}`);
-        }
-        const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
-        const entry = resolve(root, manifest.main ?? "dist/index.js");
+      // Discovery first: an operator should not have to name pi's package path,
+      // which is buried in a versioned release directory and changes on update.
+      const hint = settings.cli_path || "";
+      const { dir, source } = resolvePiPkgDir({ hint });
+      if (dir) {
+        const manifest = JSON.parse(await readFile(join(dir, "package.json"), "utf8"));
+        const entry = resolve(dir, manifest.main ?? "dist/index.js");
+        lastResolution = { dir, source };
         return import(pathToFileURLString(entry));
       }
-      return import("@earendil-works/pi-coding-agent");
+      // A locally installed copy beside the adapter is the last resort before
+      // giving up; the install command puts one there when npm was available.
+      try {
+        lastResolution = { dir: null, source: "package resolution" };
+        return await import(PI_PKG);
+      } catch {
+        throw new AdapterError(
+          "pi_unavailable",
+          `could not find ${PI_PKG}. Install pi, or set "cli_path" in config.json to the pi command or its package directory.`,
+        );
+      }
     })();
   }
   return sdkPromise;
@@ -292,6 +284,13 @@ async function createPiSession(ctx) {
   const session = created.session;
   if (created.modelFallbackMessage) log("warn", created.modelFallbackMessage);
   const diagnostics = created.extensionsResult?.diagnostics?.map((d) => d.message) ?? [];
+  // Record where pi came from. Discovery is silent by design, so this is the only
+  // way an operator can tell which installation a bot is actually running.
+  if (lastResolution?.dir) {
+    diagnostics.push(`pi runtime: ${lastResolution.dir} (${lastResolution.source})`);
+  } else if (lastResolution?.source) {
+    diagnostics.push(`pi runtime: ${lastResolution.source}`);
+  }
 
   // Reject a session with no usable model before prompting, which is what the
   // old driver's preflight did.

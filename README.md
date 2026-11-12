@@ -14,7 +14,6 @@ repository to run Earth.
 ```bash
 tresorbot-earth agent install \
   https://github.com/Ladbaby/TresorBot-agents/releases/download/v1.0.0/pi-1.0.0.json \
-  --sha256 8f62c4b3b3efff7d41bc7543adee3e035b7bd7063e7a5f15d28346ca2064006c
 ```
 
 `--sha256` is optional, as with Tresor's `plugin install-url`. Without it the
@@ -36,13 +35,16 @@ declares `@earendil-works/pi-coding-agent`, so `npm` must be on `PATH` for it.
 
 ## Configuring an adapter
 
-Each adapter reads its own `config.json` beside it, so Earth's config file has no
-adapter-specific keys:
+The pi adapter finds your pi installation on its own, so
+if you already have pi working, installing the adapter is the whole setup.
+
+Settings are optional and live in a `config.json` beside the adapter, so Earth's
+config file has no adapter-specific keys:
 
 ```bash
 cat > ~/.tresorbot/agents/pi/config.json <<'JSON'
 {
-  "cli_path": "/path/to/pi-coding-agent/dist/cli.js",
+  "model": "claude-sonnet-4",
   "tools": ["read", "write", "bash"]
 }
 JSON
