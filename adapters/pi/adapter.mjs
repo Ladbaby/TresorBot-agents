@@ -178,7 +178,7 @@ function buildHostTools({ toolUrl, toolToken, assignmentId, crypto }) {
  * history on first use. This replaces session-helper.mjs: same on-disk contract
  * (a `session.json` pointer plus a session directory), but called in-process.
  */
-async function resolveSession({ sdk, workspace, stateDir, conversationId, history }) {
+async function resolveSession({ sdk, workspace, stateDir, conversationId, history, log = () => {} }) {
   const pointerPath = join(stateDir, "session.json");
   const sessionsDir = join(stateDir, "pi-sessions");
   await mkdir(sessionsDir, { recursive: true });
@@ -189,10 +189,13 @@ async function resolveSession({ sdk, workspace, stateDir, conversationId, histor
       throw new AdapterError("session_mismatch", "session pointer does not match this conversation");
     }
     const sessionFile = resolve(pointer.sessionFile);
-    if (!existsSync(sessionFile)) {
-      throw new AdapterError("session_missing", "the mapped pi session is missing");
+    if (existsSync(sessionFile)) {
+      return { manager: sdk.SessionManager.open(sessionFile, sessionsDir, workspace), sessionFile, resumed: true };
     }
-    return { manager: sdk.SessionManager.open(sessionFile, sessionsDir, workspace), sessionFile, resumed: true };
+    // The pointer outlived the session file it names. Treating that as fatal
+    // would wedge the conversation forever, because the pointer is only ever
+    // rewritten from scratch. Rebuild instead, and say so in the log.
+    log("warn", "pi session file is missing; starting a fresh session for this conversation");
   }
 
   const manager = sdk.SessionManager.create(workspace, sessionsDir);
@@ -228,10 +231,20 @@ async function resolveSession({ sdk, workspace, stateDir, conversationId, histor
   }
   const sessionFile = manager.getSessionFile();
   if (!sessionFile) throw new AdapterError("session_missing", "pi did not persist the session");
+  return { manager, sessionFile, resumed: false, pointerPath, conversationId };
+}
+
+/**
+ * Commits the session pointer. This must happen only after the session has been
+ * created successfully: writing it earlier leaves a pointer to a file that may
+ * never exist, and every later turn then fails to resume.
+ */
+async function commitPointer(session) {
+  const { pointerPath, conversationId, sessionFile } = session;
+  if (!pointerPath) return;
   const temp = `${pointerPath}.${process.pid}.tmp`;
   await writeFile(temp, JSON.stringify({ conversationID: conversationId, sessionFile }), { mode: 0o600 });
   await rename(temp, pointerPath);
-  return { manager, sessionFile, resumed: false };
 }
 
 /** Text of the final assistant message, matching the old verification step. */
@@ -260,7 +273,8 @@ async function createPiSession(ctx) {
   const sdk = await loadSdk(settings);
   const crypto = await import("node:crypto");
 
-  const { manager, sessionFile } = await resolveSession({ sdk, workspace, stateDir, conversationId, history });
+  const resolved = await resolveSession({ sdk, workspace, stateDir, conversationId, history, log });
+  const { manager, sessionFile } = resolved;
 
   // Instructions replace the old before_agent_start extension.
   const appendSystemPrompt = [];
@@ -300,6 +314,17 @@ async function createPiSession(ctx) {
       "no_model",
       "local pi has no available model; check provider credentials and the Earth service environment",
     );
+  }
+
+  // Only now is the session known to be usable, so it is safe to point the
+  // conversation at it. Committing earlier leaves a dangling pointer whenever
+  // the steps above fail, which wedges every later turn for that conversation.
+  if (!resolved.resumed) {
+    try {
+      await commitPointer(resolved);
+    } catch (error) {
+      log("warn", `could not record pi session pointer: ${error?.message ?? error}`);
+    }
   }
 
   let settlePromise = null;
