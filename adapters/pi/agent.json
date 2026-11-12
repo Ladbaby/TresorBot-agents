@@ -1,0 +1,39 @@
+{
+  "name": "pi",
+  "version": "1.0.0",
+  "display_name": "Pi Coding Agent",
+  "description": "Runs the local pi coding agent in the bot's workspace, using its existing settings, model selection, credentials, extensions and skills.",
+  "entry": "adapter.mjs",
+  "protocol": 1,
+  "capabilities": ["streaming", "thinking", "usage", "host_tools", "resume", "session_ref"],
+  "requires": ["@earendil-works/pi-coding-agent"],
+  "settings": [
+    {
+      "key": "cli_path",
+      "type": "path",
+      "description": "Path to the installed pi CLI. Used to locate the pi package for the SDK."
+    },
+    {
+      "key": "pi_path",
+      "type": "path",
+      "description": "Legacy alias for cli_path."
+    },
+    {
+      "key": "model",
+      "type": "string",
+      "description": "Model override. Omit to use pi's own selection."
+    },
+    {
+      "key": "thinking_level",
+      "type": "enum",
+      "values": ["off", "low", "medium", "high"],
+      "description": "Reasoning effort. Omit to use pi's own setting."
+    },
+    {
+      "key": "tools",
+      "type": "string_list",
+      "default": ["read", "grep", "find", "ls", "edit", "write", "bash"],
+      "description": "Native tools the agent may use in the bot workspace."
+    }
+  ]
+}

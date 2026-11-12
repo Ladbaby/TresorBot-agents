@@ -1,0 +1,9 @@
+# Generated release bundles
+dist/
+
+# Local test fixture: a fake adapter used to exercise the host without an SDK.
+# Kept out of the repository so the catalogue lists only real agents.
+adapters/echo/
+
+# Local dependencies
+node_modules/

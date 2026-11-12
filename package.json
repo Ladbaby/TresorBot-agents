@@ -1,0 +1,14 @@
+{
+  "name": "@tresorbot/agents",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Agent adapter catalogue for TresorBot Earth",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "pack": "node pack.mjs"
+  },
+  "dependencies": {}
+}
