@@ -10,10 +10,11 @@
 // The digest scheme must match TresorBot's internal/adapters.SourceDigest:
 // filenames sorted, each entry framed as <len(name)>:<name><len(body)>:<body>.
 
-import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { sourceDigest } from "./digest.mjs";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const adaptersDir = join(root, "adapters");
@@ -21,15 +22,6 @@ const distDir = join(root, "dist");
 
 const MAX_FILES = 256;
 const MAX_BYTES = 4 << 20;
-
-function sourceDigest(files) {
-  const names = Object.keys(files).sort();
-  const hash = createHash("sha256");
-  for (const name of names) {
-    hash.update(`${name.length}:${name}${files[name].length}:${files[name]}`);
-  }
-  return hash.digest("hex");
-}
 
 /** Reads every file in an adapter directory, keyed by relative path. */
 async function collect(dir, prefix = "") {

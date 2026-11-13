@@ -1,0 +1,60 @@
+{
+  "name": "claude-code",
+  "version": "1.0.0",
+  "display_name": "Claude Code",
+  "description": "Runs Claude Code in the bot's workspace through the Claude Agent SDK, using the local Claude Code installation and its own settings, credentials and permission mode.",
+  "entry": "adapter.mjs",
+  "protocol": 1,
+  "capabilities": [
+    "streaming",
+    "thinking",
+    "usage",
+    "host_tools",
+    "resume",
+    "session_ref"
+  ],
+  "requires": [
+    "@anthropic-ai/claude-agent-sdk"
+  ],
+  "limits": {
+    "max_sessions": 24
+  },
+  "settings": [
+    {
+      "key": "cli_path",
+      "type": "path",
+      "description": "Optional. The claude command or its package directory. Omit to discover the installation automatically."
+    },
+    {
+      "key": "model",
+      "type": "string",
+      "description": "Model override. Omit to use Claude Code's own selection."
+    },
+    {
+      "key": "thinking_level",
+      "type": "enum",
+      "values": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "description": "Reasoning effort. Omit to use Claude Code's own setting."
+    },
+    {
+      "key": "permission_mode",
+      "type": "enum",
+      "values": [
+        "auto",
+        "acceptEdits",
+        "dontAsk"
+      ],
+      "description": "Overrides Claude Code's permission mode. Omit to use the mode from the operator's own Claude settings, falling back to auto when unset or unusable. Only modes that work unattended are offered: default and plan wait for a human to approve tool calls, and bypassPermissions is refused when running as root."
+    },
+    {
+      "key": "max_turns",
+      "type": "int",
+      "description": "Optional cap on agent turns per prompt. Omit for no limit."
+    }
+  ]
+}
